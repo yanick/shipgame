@@ -1,0 +1,110 @@
+<html>
+<head> 
+<style type="text/css">
+div.space_viewport {
+    background-color: black;
+    background: url(/images/starfield.jpg);
+    width: 800px;
+    height: 400px;
+}
+</style>
+</head>
+<body>
+
+<script src="/javascripts/raphael-min.js"></script>
+<script src="/javascripts/raphael-zpd.js"></script>
+<script src="/javascripts/jquery.js"></script>
+
+<div class="space_viewport" id="space_viewport" >
+</div>
+
+<script>
+    var paper = Raphael(document.getElementById("space_viewport"), 800, 400);
+
+    var zpf = new RaphaelZPD( paper, { zoom: true, pan: true, drag: false } );
+
+    paper.ZPDPanTo(0,0)
+
+    var ships = new Object();
+
+//    var c = paper.image("KiaKyu.gif", 400, 200, 64, 64);
+//    var arc = paper.path( "M432,232 Q 432,200 350,150" );
+//    arc.attr({ stroke: "white" });
+
+//    c.animateAlong( arc, 10000, true ).animate( {rotation: -90}, 10000 );
+
+</script>
+<input name="course" id="course" />
+<input type="submit" value="plot course" onclick="plot_course()" />
+<input type="submit" value="make it so"
+    onclick="make_it_so()" />
+
+<script>
+var traj;
+    jQuery.getJSON( '/radar', function(data){
+
+        for each ( s in data.ships ) {
+            var ship = paper.image( "/images/ship.gif", s.location.x-100,
+            s.location.y-100, 200, 200).rotate(s.heading);
+            ships[s.id] = ship;
+            ship.node.id = s.id;
+            var trajectory = paper.path( "M0,0L0,0" );
+            trajectory.insertBefore(ship);
+            trajectory.attr({ stroke: "white" });
+            trajectory.node.id = "trajectory-" + s.id;
+            traj = trajectory;
+        }
+
+    });
+
+function plot_course() {
+    var course = $('#course').val();
+    var data = new Object();
+    data["course"] = course;
+    jQuery.ajax({
+        url: '/plot_course',
+        data: data,
+        dataType: 'json',
+        type: "POST",
+        success: function(data) {
+        $('.log').html();
+        for each ( var line in data.log ) {
+            $('.log').append( '<p>' + line + '</p>' );
+        }
+
+        var x = traj.attr( "path", data.trajectory );
+        traj.show();
+    } });
+    }
+    
+function make_it_so () {
+    var course = $('#course').val();
+    var data = new Object();
+    data["course"] = course;
+    jQuery.ajax({
+        url: '/move',
+        data: data,
+        dataType: 'json',
+        type: "POST",
+        success: function(data) {
+        $('.log').html();
+        for each ( var line in data.log ) {
+            $('.log').append( '<p>' + line + '</p>' );
+        }
+
+        var x = traj.attr( "path", data.trajectory );
+        ships[data.id].rotate( data.heading, true );
+        ships[data.id].animateAlong( traj, 5000, function(){
+            traj.hide();
+        });
+    } });
+}
+</script>
+
+<div class="intercom">
+<p><b>intercom</b></p>
+<div class="log">
+</div>
+</div>
+
+</body></html> 
